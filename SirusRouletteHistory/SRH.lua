@@ -217,6 +217,12 @@ end)
 do  -- Events
     function events:CHAT_MSG_ADDON(prefix, msg)
         if(prefix == "ASMSG_LOTTERY_REWARD" and #msg > 0) then
+            if(not S_Roulette_Char_DB[msg]) then
+                S_Roulette_Char_DB[msg] = 0;
+            end
+            if(not S_Roulette_Char_DB.TOTAL) then
+                S_Roulette_Char_DB.TOTAL = 0
+            end
             S_Roulette_Char_DB[msg] = S_Roulette_Char_DB[msg] + 1;
             S_Roulette_Char_DB.TOTAL = S_Roulette_Char_DB.TOTAL + 1;
             S_Roulette_DB[UnitName("Player")] = S_Roulette_Char_DB;
