@@ -1,18 +1,35 @@
+local _, SRH = ...;
+
 S_Roulette_Char_DB = S_Roulette_Char_DB or {};
 S_Roulette_DB = S_Roulette_DB or {};
 if(not Custom_RouletteFrame) then
     return false;
 end
+if(not S_Roulette_Char_DB.TOTAL) then
+    S_Roulette_Char_DB.TOTAL = 0
+end
+
+
+local function tsize(t)
+    local result = 0;
+    for _,_ in pairs(t or {}) do
+        result = result + 1
+    end
+    return result;
+end
+
 local frames = {};
 local events = {};
-local frame = SRH_MainFrame or CreateFrame("Frame", "SRH_MainFrame", Custom_RouletteFrame);
-frame:RegisterEvent("CHAT_MSG_ADDON");
+local frame = CreateFrame("Frame", "SRH_MainFrame", Custom_RouletteFrame);
 do
     if(not Custom_RouletteFrame.closeButton.isSkinned) then
         Custom_RouletteFrame:SetScale(0.75);
     end
+    local point, relativeFrame, relativePoint, ofsx, ofsy = Custom_RouletteFrame:GetPoint();
+    Custom_RouletteFrame:ClearAllPoints();
 
-    frame:SetSize(Custom_RouletteFrame:GetWidth()/2.5, Custom_RouletteFrame:GetHeight()*0.65);
+    Custom_RouletteFrame:SetPoint(point, relativeFrame, relativePoint, ofsx - 100, ofsy)
+    frame:SetSize(Custom_RouletteFrame:GetWidth()/2.3, Custom_RouletteFrame:GetHeight()*0.65);
     if(frame.CreateBackdrop) then
         frame:CreateBackdrop("Transparent");
     else
@@ -23,6 +40,8 @@ do
             edgeSize = 4,
             tileSize = 5
         });
+        frame:SetBackdropColor(.3, .3, .3, 1);
+        frame:SetBackdropBorderColor(0.1, 0.1, 0.1);
     end
     frame:SetPoint("LEFT", Custom_RouletteFrame, "RIGHT", 0 ,0)
     local title = frame:CreateFontString(nil,"OVERLAY","GameFontNormal");
@@ -55,24 +74,63 @@ do
     btn_show_hide:SetScript("OnClick", function (self)
         if(frame:IsShown()) then
             C_Timer:NewTicker(0.05, function ()
-                if(frame:GetAlpha() > 0.1) then
-                    frame:SetAlpha(frame:GetAlpha() - 0.1);
+                if(frame:GetAlpha() > 0.2) then
+                    frame:SetAlpha(frame:GetAlpha() - 0.2);
                 else
-                    frame:SetAlpha(frame:GetAlpha() - 0.1);
+                    frame:SetAlpha(frame:GetAlpha() - 0.2);
                     frame:Hide();
                 end
             end, 10);
         else
             C_Timer:NewTicker(0.05, function ()
-                if(frame:GetAlpha() < 0.1) then
+                if(frame:GetAlpha() < 0.2) then
                     frame:Show();
-                    frame:SetAlpha(frame:GetAlpha() + 0.1);
+                    frame:SetAlpha(frame:GetAlpha() + 0.2);
                 else
-                    frame:SetAlpha(frame:GetAlpha() + 0.1);
+                    frame:SetAlpha(frame:GetAlpha() + 0.2);
                 end
             end, 10);
         end
     end)
+
+    local btn_wipe_DB = CreateFrame("Button", "SRH_WIPE", frame);
+    btn_wipe_DB:SetBackdrop({
+        bgFile = "Interface\\ChatFrame\\ChatFrameBackground",
+        edgeFile = "Interface\\ChatFrame\\ChatFrameBackground",
+        tile = true,
+        edgeSize = .3,
+        tileSize = .3
+    });
+    btn_wipe_DB:SetBackdropColor(.3, .3, .3, 1);
+    btn_wipe_DB:SetBackdropBorderColor(0.1, 0.1, 0.1);
+    btn_wipe_DB:SetSize(100, 20)
+    btn_wipe_DB:SetPoint("RIGHT", frame, "BOTTOMRIGHT",-2,20);
+    btn_wipe_DB.Text = btn_wipe_DB:CreateFontString(nil,"OVERLAY","GameFontNormal");
+    btn_wipe_DB.Text:SetText("Очистить историю")
+    btn_wipe_DB.Text:SetPoint("CENTER",0,0);
+    btn_wipe_DB:SetScript("OnClick", function (self)
+        local temp = S_Roulette_Char_DB;
+        table.wipe(S_Roulette_Char_DB);
+        for k,v in pairs(temp) do
+            S_Roulette_Char_DB[k] = 0;
+        end
+        S_Roulette_DB[UnitName("Player")] = S_Roulette_Char_DB;
+
+        for _,v in pairs(frames) do
+            v:UpdateValue();
+        end
+        frame:SetTotalPerChar(S_Roulette_Char_DB.TOTAL);
+        local total = 0;
+        for _,v in pairs(S_Roulette_DB or {}) do
+            total = total + (v.TOTAL or 0);
+        end
+        frame:SetTotalPerAccount(total);
+
+    end)
+
+    --cb_roulette = SRH.UI.ComboBox("SpinCounters", Custom_RouletteFrameSpinButton, {Height = 30, Width = 100}, nil, {1,2,3,4,5,6}, "Test", function(self) print(self:GetIndex()) end);
+    
+
     btn_show_hide:SetScript("OnEnter", function (self)
         GameTooltip:SetOwner(self,"ANCHOR_RIGHT");
         GameTooltip:AddLine("Показать/Скрыть историю рулетки.")
@@ -84,132 +142,99 @@ do
 
 
 end
-local function addElement(key)
-    local item = C_Split(key, ":");
-    if(type(item) ~= "table" or #item < 3) then print("Error: ", key) return end
-    local f = CreateFrame("Button", nil, frame);
-    f.ID = key
-    do  --Frame
-        f:SetSize(frame:GetWidth()-4, frame:GetHeight() / 18 - 2.5);
-        if(f.CreateBackdrop) then
-            f:CreateBackdrop("Transparent");
-        else
-            f:SetBackdrop({
-                bgFile = [[Interface\TutorialFrame\TutorialFrameBackground]],
-                edgeFile = nil,
-                tile = true,
-                edgeSize = 1,
-                tileSize = 5
-            });
-        end
-        f:ClearAllPoints();
-        if(#frames == 0) then
-            f:SetPoint("TopLeft", frame, "TopLeft", 2, -25);
-        else
-            f:SetPoint("TOP", frames[#frames], "BOTTOM", 0, -3);
-        end
-    end
-    local itemname, itemlink = GetItemInfo(tonumber(item[1])); 
-    local fonts = {
-        name = f:CreateFontString(nil,"OVERLAY","GameFontNormalSmall"),
-        count = f:CreateFontString(nil,"OVERLAY","GameFontNormalSmall"),
-        total = f:CreateFontString(nil,"OVERLAY","GameFontNormalSmall"),
-        percent = f:CreateFontString(nil,"OVERLAY","GameFontNormalSmall"),
-    }
+local dgv = SRH.UI.CreateDGV(SRH_MainFrame,{}, {});
+dgv:SetPoint("TOPLEFT", SRH_MainFrame, "TOPLEFT", 2, -25);
 
-    do  -- fontstrings
-        fonts.name:SetPoint("LEFT", 5,0)
-        fonts.name:SetSize(f:GetWidth()*0.55, f:GetHeight());
-        fonts.name:SetJustifyH("LEFT")
-        fonts.name:SetText(itemlink);
+local colums ={};
+colums.Index = dgv:AddColumn({Name = "#", Key = "Index"});
+colums.Item = dgv:AddColumn({Name = "   Название предмета   ", Key = "Item"});
+colums.Count = dgv:AddColumn({Name = "  ШТ  ", Key = "Count"});
+colums.Percnt = dgv:AddColumn({Name = "  Шанс  ", Key = "Percent"});
 
-        fonts.count:SetPoint("LEFT", fonts.name, "RIGHT", 0,0)
-        fonts.count:SetSize(f:GetWidth()*0.10, f:GetHeight());
-        fonts.count:SetJustifyH("LEFT")
-        if(tonumber(item[2]) > 1) then
-            fonts.count:SetText(string.format("x%i", tonumber(item[2])));
-        end
-        
-        fonts.total:SetPoint("LEFT", fonts.count, "RIGHT", 3,0)
-        fonts.total:SetSize(f:GetWidth()*0.13, f:GetHeight());
-        fonts.total:SetJustifyH("LEFT")
+colums.Item:SetWidth(frame:GetWidth() - colums.Count:GetWidth() - colums.Percnt:GetWidth() - colums.Index:GetWidth() - 4);
+colums.Index:SetJustifyHAllRows("RIGHT")
+colums.Item:SetJustifyHAllRows("LEFT");
+colums.Percnt:SetJustifyHAllRows("RIGHT")
 
-        fonts.percent:SetPoint("LEFT", fonts.total, "RIGHT", 3,0)
-        fonts.percent:SetSize(f:GetWidth()*0.2, f:GetHeight());
-        fonts.percent:SetJustifyH("LEFT")
-    end
-    function f:Update()
-        local counts = S_Roulette_Char_DB[self.ID] or 0;
-        if(counts == 0) then 
-            fonts.total:SetText("0");
-            fonts.percent:SetText("неизвестно");
-        else
-            fonts.total:SetText(counts);
-            fonts.percent:SetText(string.format("%.3f%%", counts/S_Roulette_Char_DB.TOTAL*100));
-        end
-    end
-    f:SetScript("OnEnter", function ()
-        GameTooltip:SetOwner(f,"ANCHOR_RIGHT");
-        GameTooltip:SetHyperlink(itemlink);
-        GameTooltip:AddDoubleLine("|cffFFFFFFВыиграно:|r", string.format("|cffFFFFFF%i|r раз(а).", S_Roulette_Char_DB[f.ID] or 0));
-        if(S_Roulette_Char_DB.TOTAL > 0) then
-            if(S_Roulette_Char_DB[f.ID] > 0) then
-                GameTooltip:AddDoubleLine("|cffFFFFFFШанс выиграть:|r", string.format("|cffFFFFFF%.3f%%|r", S_Roulette_Char_DB[f.ID] /S_Roulette_Char_DB.TOTAL*100));
-            else
-                GameTooltip:AddDoubleLine("|cffFFFFFFШанс выиграть:|r", "|cffFF3333НЕИЗВЕСТНО|r");
-            end
-        end
 
-        local globals = {count = 0, total = 0};
-        for _, v in pairs(S_Roulette_DB) do
-            globals.count = globals.count + (v[f.ID] or 0);
-            globals.total = globals.total + (v.TOTAL or 0);
-        end
-        if(globals.total > 0) then
-            GameTooltip:AddLine("Информация по всем персонажам:");
-            GameTooltip:AddDoubleLine("|cffFFFFFFВыиграно:|r", string.format("|cffFFFFFF%i|r раз(а).", globals.count));
-            if(globals.count == 0) then
-                GameTooltip:AddDoubleLine("|cffFFFFFFШанс выиграть:|r", "|cffFF3333НЕИЗВЕСТНО|r");
-            else
-                GameTooltip:AddDoubleLine("|cffFFFFFFШанс выиграть:|r", string.format("|cffFFFFFF%.3f%%|r", globals.count  / globals.total*100));
-            end
-        end
 
-        
-        GameTooltip:Show();
-    end)
-    f:SetScript("OnLeave", function ()
-        GameTooltip:Hide();
-    end)
-    return f;
-end
+
 frame:SetScript("OnShow", function (self)
-    S_Roulette_Char_DB.TOTAL = S_Roulette_Char_DB.TOTAL or 0;
+   
     if(not S_Roulette_DB[UnitName("Player")]) then
         S_Roulette_DB[UnitName("Player")] = S_Roulette_Char_DB;
     end
-    self:SetTotalPerChar(S_Roulette_Char_DB.TOTAL);
+    self:SetTotalPerChar(S_Roulette_Char_DB.TOTAL or 0);
     local total = 0;
     for _,v in pairs(S_Roulette_DB or {}) do
         total = total + (v.TOTAL or 0);
     end
     self:SetTotalPerAccount(total);
-    if(#frames > 0) then
-        for i = 1, #frames do
-            frames[i]:Update();
+    if(tsize(frames) > 0) then
+        for _,v in pairs(frames) do
+            v:UpdateValue();
         end
         return;
     end
-    for _, v in pairs(Custom_RouletteFrame.rewardData or {}) do
+    
+    for k, v in pairs(Custom_RouletteFrame.rewardData or {}) do
         if(v and type(v) == "table" and v.itemCountMin) then
             local key = string.format("%i:%i:%i",v.itemEntry, v.itemCountMin and v.itemCountMin or 0, v.isJackpot and 1 or 0);
             if(not S_Roulette_Char_DB[key]) then
                 S_Roulette_Char_DB[key] = 0;
             end
-            local f = addElement(key);
-            table.insert(frames, f);
-            frames[key] = frames[#frames];
-            frames[key]:Update();
+            local itemName, itemLink = GetItemInfo(v.itemEntry);
+            if(v.itemCountMin > 1) then
+                itemLink = itemLink.." x"..v.itemCountMin;
+            end
+            local f = dgv:AddRow({Index = k, ItemName = itemName, ItemId = v.itemEntry, Item = itemLink , Count = 0, Percent = 0});
+            f.ID = key;
+            f.Item.Value = itemName;
+            S_Roulette_Char_DB[key] = S_Roulette_Char_DB[key] or 0;
+            S_Roulette_Char_DB.TOTAL = S_Roulette_Char_DB.TOTAL or 0;
+            function f:UpdateValue()
+                self:SetValue("Count", S_Roulette_Char_DB[key] or 0);
+                if(S_Roulette_Char_DB and S_Roulette_Char_DB.TOTAL and S_Roulette_Char_DB.TOTAL > 0) then
+                    
+                    self:SetValue("Percent", (S_Roulette_Char_DB[key] or 0) / S_Roulette_Char_DB.TOTAL *100 , "%.2f%%");
+                else
+                    S_Roulette_Char_DB.TOTAL = 0;
+                    self:SetValue("Percent", 0, "%.2f%%");
+                end
+            end
+            f:UpdateValue()
+            f:SetScript("OnEnter", function (self)
+                GameTooltip:SetOwner(self,"ANCHOR_RIGHT");
+                GameTooltip:SetHyperlink(itemLink);
+                GameTooltip:AddDoubleLine("|cffFFFFFFВыиграно:|r", string.format("|cffFFFFFF%i|r раз(а).", S_Roulette_Char_DB[f.ID] or 0));
+                if(S_Roulette_Char_DB.TOTAL > 0) then
+                    if(S_Roulette_Char_DB[self.ID] and S_Roulette_Char_DB[self.ID] > 0) then
+                        GameTooltip:AddDoubleLine("|cffFFFFFFШанс выиграть:|r", string.format("|cffFFFFFF%.3f%%|r", S_Roulette_Char_DB[f.ID] /S_Roulette_Char_DB.TOTAL*100));
+                    else
+                        GameTooltip:AddDoubleLine("|cffFFFFFFШанс выиграть:|r", "|cffFF3333НЕИЗВЕСТНО|r");
+                    end
+                end
+
+                local globals = {count = 0, total = 0};
+                for _, v in pairs(S_Roulette_DB) do
+                    globals.count = globals.count + (v[f.ID] or 0);
+                    globals.total = globals.total + (v.TOTAL or 0);
+                end
+                if(globals.total > 0) then
+                    GameTooltip:AddLine("Информация по всем персонажам:");
+                    GameTooltip:AddDoubleLine("|cffFFFFFFВыиграно:|r", string.format("|cffFFFFFF%i|r раз(а).", globals.count));
+                    if(globals.count == 0) then
+                        GameTooltip:AddDoubleLine("|cffFFFFFFШанс выиграть:|r", "|cffFF3333НЕИЗВЕСТНО|r");
+                    else
+                        GameTooltip:AddDoubleLine("|cffFFFFFFШанс выиграть:|r", string.format("|cffFFFFFF%.3f%%|r", globals.count  / globals.total*100));
+                    end
+                end
+                GameTooltip:Show();
+            end)
+            f:SetScript("OnLeave", function (self)
+                GameTooltip:Hide();
+            end)
+            frames[key] = f;
         end
     end
 end)
@@ -226,9 +251,10 @@ do  -- Events
             S_Roulette_Char_DB[msg] = S_Roulette_Char_DB[msg] + 1;
             S_Roulette_Char_DB.TOTAL = S_Roulette_Char_DB.TOTAL + 1;
             S_Roulette_DB[UnitName("Player")] = S_Roulette_Char_DB;
+
         elseif(prefix == "ACMSG_LOTTERY_REWARD" and frame:IsShown()) then
-            for i = 1, #frames do
-                frames[i]:Update();
+            for _,v in pairs(frames) do
+                v:UpdateValue();
             end
             frame:SetTotalPerChar(S_Roulette_Char_DB.TOTAL);
             local total = 0;
@@ -244,8 +270,6 @@ for k, _ in pairs(events or {}) do
     frame:RegisterEvent(k);
 end
 frame:SetScript("OnEvent", function (_, event, ...)
-    if(not events[event]) then return;
-    elseif(type(events[event]) == "function") then
-        events[event](event, ...);
-    end
+    -- if(not events[event]) then return end;
+    events[event](_, ...);
 end)
