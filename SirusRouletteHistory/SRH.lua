@@ -178,16 +178,16 @@ frame:SetScript("OnShow", function (self)
     end
     
     for k, v in pairs(Custom_RouletteFrame.rewardData or {}) do
-        if(v and type(v) == "table" and v.itemCountMin) then
-            local key = string.format("%i:%i:%i",v.itemEntry, v.itemCountMin and v.itemCountMin or 0, v.isJackpot and 1 or 0);
+        if(v and type(v) == "table" and v.amountMin) then
+            local key = string.format("%i:%i:%i",v.itemID, v.amountMin and v.amountMin or 0, v.isJackpot and 1 or 0);
             if(not S_Roulette_Char_DB[key]) then
                 S_Roulette_Char_DB[key] = 0;
             end
-            local itemName, itemLink = GetItemInfo(v.itemEntry);
-            if(v.itemCountMin > 1) then
-                itemLink = itemLink.." x"..v.itemCountMin;
+            local itemName, itemLink = GetItemInfo(v.itemID);
+            if(v.amountMin > 1) then
+                itemLink = itemLink.." x"..v.amountMin;
             end
-            local f = dgv:AddRow({Index = k, ItemName = itemName, ItemId = v.itemEntry, Item = itemLink , Count = 0, Percent = 0});
+            local f = dgv:AddRow({Index = k, ItemName = itemName, ItemId = v.itemID, Item = itemLink , Count = 0, Percent = 0});
             f.ID = key;
             f.Item.Value = itemName;
             S_Roulette_Char_DB[key] = S_Roulette_Char_DB[key] or 0;
